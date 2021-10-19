@@ -46,11 +46,11 @@ int uart_receive(FILE* stream) {
     PRINT_OPERATION(print_format, first / second, "/");
 
 void handle_int8() {
-    HANDLE_TYPE(int32_t, SCNd32, PRId32);
+    HANDLE_TYPE(int8_t, SCNd8, PRId8);
 }
 
 void handle_int16() {
-    HANDLE_TYPE(int32_t, SCNd32, PRId32);
+    HANDLE_TYPE(int16_t, SCNd16, PRId16);
 }
 
 void handle_int32() {
