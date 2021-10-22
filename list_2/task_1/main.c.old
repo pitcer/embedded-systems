@@ -1,0 +1,92 @@
+#include <avr/io.h>
+#include <inttypes.h>
+#include <util/delay.h>
+
+#define BUFFER_SIZE 100
+#define BUFFER_DATA uint8_t
+#define BUFFER_POINTER uint8_t
+
+struct buffer {
+    BUFFER_DATA buffer[BUFFER_SIZE];
+    BUFFER_POINTER read;
+    BUFFER_POINTER write;
+};
+
+uint8_t buffer_is_empty(struct buffer* buffer) {
+    return buffer->read == buffer->write;
+}
+
+BUFFER_DATA buffer_read(struct buffer* buffer) {
+    BUFFER_POINTER read = buffer->read;
+    buffer->read = (read + 1) % BUFFER_SIZE;
+    return buffer->buffer[read];
+}
+
+void buffer_write(struct buffer* buffer, BUFFER_DATA data) {
+    BUFFER_POINTER write = buffer->write;
+    buffer->write = (write + 1) % BUFFER_SIZE;
+    buffer->buffer[write] = data;
+}
+
+#define BUTTON_PORT PORTC
+#define BUTTON_PIN PINC
+#define BUTTON PC4
+
+#define LED_PORT PORTC
+#define LED_DDR DDRC
+#define LED PC5
+
+int main() {
+    UCSR0B &= ~_BV(RXEN0) & ~_BV(TXEN0);
+
+    LED_DDR |= _BV(LED);
+    LED_PORT &= ~_BV(LED);
+
+    BUTTON_PORT |= _BV(BUTTON);
+
+    struct buffer buffer;
+    uint8_t pressed = 0x0;
+    uint8_t elapsed = 0;
+    uint8_t elapsed_from_first_click = 0;
+    uint8_t count_to_dump = 0;
+    while (1) {
+        if (elapsed_from_first_click == 100) {
+            count_to_dump = 2
+        }
+        if (count_to_dump == 2) {
+
+        }
+        if ((BUTTON_PIN ^ pressed) & BUTTON_PIN & _BV(BUTTON)) {
+            elapsed = 0;
+            if (count_to_dump & _BV(0) == 0) {
+                count_to_dump |= _BV(0);
+                elapsed_from_first_click = 0;
+            }
+            pressed |= _BV(BUTTON);
+        }
+        if ((BUTTON_PIN ^ pressed) & pressed & _BV(BUTTON)) {
+            buffer_write(&buffer, elapsed);
+            pressed &= ~_BV(BUTTON);
+        }
+        _delay_ms(10);
+        if (count_to_dump == 1) {
+            elapsed_from_first_click++;
+        }
+        elapsed++;
+
+    //         struct buffer buffer = {
+    //     .buffer = { 0 },
+    //     .read = 0,
+    //     .write = 99
+    // };
+
+    // uint8_t buffer[100] = {0};
+
+    // while (1) {
+    //     buffer_write(&buffer, !((BUTTON_PIN & _BV(BUTTON)) >> BUTTON));
+    //     // wyzeruj bit, a potem ustaw na wartość w bufferze
+    //     LED_PORT = (LED_PORT & ~_BV(LED)) | buffer_read(&buffer) << LED;
+    //     _delay_ms(10);
+    // }
+    }
+}

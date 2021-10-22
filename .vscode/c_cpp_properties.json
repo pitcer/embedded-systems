@@ -1,0 +1,17 @@
+{
+    "configurations": [
+        {
+            "name": "AVR",
+            "cStandard": "c17",
+            "compilerPath": "/usr/bin/avr-gcc",
+            "includePath": [
+                "/usr/avr/include"
+            ],
+            "compilerArgs": [
+                "-mmcu=atmega328p",
+                "-DF_CPU=16000000UL"
+            ]
+        }
+    ],
+    "version": 4
+}

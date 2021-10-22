@@ -1,0 +1,21 @@
+{
+    "AVR.device.type": "atmega328p",
+    "AVR.device.frequency": 16000000,
+    "AVR.source.compiler": "/usr/bin/avr-gcc",
+    "AVR.programmer.tool": "/usr/bin/avrdude",
+    "AVR.programmer.definitions": "/etc/avrdude.conf",
+    "AVR.source.libraries": [
+        "/usr/avr/lib",
+        "/usr/avr/include",
+        "/usr/avr"
+    ],
+    "files.associations": {
+        "*.json": "json",
+        "*.s": "gas",
+        "inttypes.h": "c",
+        "float.h": "c",
+        "math.h": "c",
+        "delay.h": "c",
+        "stdbool.h": "c"
+    }
+}
