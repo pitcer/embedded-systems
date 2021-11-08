@@ -436,6 +436,7 @@ inline static void play_rest(enum duration duration) {
 static const uint8_t melody[] PROGMEM = {
     // @formatter:off
     // https://s3.amazonaws.com/halleonard-pagepreviews/HL_DDS_912405L1wq5Llho6.png
+    // https://www.youtube.com/watch?v=wQ5uaLC_13M
     NOTE(C4, EIGHT)
     NOTE(A3, EIGHT)
     NOTE(G3, EIGHT)
