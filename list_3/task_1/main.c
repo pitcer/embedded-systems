@@ -435,6 +435,58 @@ inline static void play_rest(enum duration duration) {
 
 static const uint8_t melody[] PROGMEM = {
     // @formatter:off
+    // https://www.youtube.com/watch?v=vRFWPwCaaYs
+    DOUBLE(
+        DOUBLE(
+            NOTE(A4, QUARTER)
+            REST(QUARTER)
+            NOTE(A4, EIGHT)
+            REST(HUNDRED_TWENTY_EIGHTH)
+            NOTE(A4, SIXTEENTH)
+            REST(HUNDRED_TWENTY_EIGHTH_DOT)
+            NOTE(A4, SIXTEENTH)
+            NOTE(G4, SIXTEENTH)
+            NOTE(A4, SIXTEENTH)
+            REST(EIGHT))
+        NOTE(A4, QUARTER)
+        REST(EIGHT)
+        NOTE(C5, QUARTER)
+        NOTE(A4, QUARTER)
+        NOTE(G4, QUARTER)
+        NOTE(F4, QUARTER)
+        NOTE(D4, EIGHT)
+        REST(HUNDRED_TWENTY_EIGHTH)
+        NOTE(D4, EIGHT)
+        NOTE(E4, EIGHT)
+        NOTE(F4, EIGHT)
+        NOTE(D4, EIGHT))
+    // https://www.youtube.com/watch?v=RlJpBDGS890
+    DOUBLE(
+        NOTE(AS4, QUARTER)
+        REST(QUARTER)
+        DOUBLE(
+            NOTE(AS4, EIGHT)
+            REST(THIRTY_SECOND)
+            NOTE(AS4, SIXTEENTH)
+            REST(HUNDRED_TWENTY_EIGHTH)
+            NOTE(AS4, SIXTEENTH)
+            NOTE(GS4, SIXTEENTH)
+            NOTE(AS4, EIGHT)
+            REST(HUNDRED_TWENTY_EIGHTH)
+            NOTE(AS4, QUARTER)
+            REST(EIGHT_DOT))
+        NOTE(CS5, QUARTER)
+        NOTE(AS4, EIGHT)
+        REST(EIGHT)
+        NOTE(GS4, QUARTER)
+        NOTE(FS4, EIGHT)
+        REST(EIGHT)
+        NOTE(DS4, EIGHT)
+        REST(THIRTY_SECOND)
+        NOTE(DS4, EIGHT)
+        NOTE(F4, EIGHT)
+        NOTE(FS4, EIGHT)
+        NOTE(DS4, EIGHT))
     // https://s3.amazonaws.com/halleonard-pagepreviews/HL_DDS_912405L1wq5Llho6.png
     // https://www.youtube.com/watch?v=wQ5uaLC_13M
     NOTE(C4, EIGHT)
@@ -528,59 +580,6 @@ static const uint8_t melody[] PROGMEM = {
     NOTE(F4, EIGHT)
     NOTE(C4, EIGHT)
     NOTE(F4, QUARTER)
-
-    // https://www.youtube.com/watch?v=vRFWPwCaaYs
-    DOUBLE(
-        DOUBLE(
-            NOTE(A4, QUARTER)
-            REST(QUARTER)
-            NOTE(A4, EIGHT)
-            REST(HUNDRED_TWENTY_EIGHTH)
-            NOTE(A4, SIXTEENTH)
-            REST(HUNDRED_TWENTY_EIGHTH_DOT)
-            NOTE(A4, SIXTEENTH)
-            NOTE(G4, SIXTEENTH)
-            NOTE(A4, SIXTEENTH)
-            REST(EIGHT))
-        NOTE(A4, QUARTER)
-        REST(EIGHT)
-        NOTE(C5, QUARTER)
-        NOTE(A4, QUARTER)
-        NOTE(G4, QUARTER)
-        NOTE(F4, QUARTER)
-        NOTE(D4, EIGHT)
-        REST(HUNDRED_TWENTY_EIGHTH)
-        NOTE(D4, EIGHT)
-        NOTE(E4, EIGHT)
-        NOTE(F4, EIGHT)
-        NOTE(D4, EIGHT))
-    // https://www.youtube.com/watch?v=RlJpBDGS890
-    DOUBLE(
-        NOTE(AS4, QUARTER)
-        REST(QUARTER)
-        DOUBLE(
-            NOTE(AS4, EIGHT)
-            REST(THIRTY_SECOND)
-            NOTE(AS4, SIXTEENTH)
-            REST(HUNDRED_TWENTY_EIGHTH)
-            NOTE(AS4, SIXTEENTH)
-            NOTE(GS4, SIXTEENTH)
-            NOTE(AS4, EIGHT)
-            REST(HUNDRED_TWENTY_EIGHTH)
-            NOTE(AS4, QUARTER)
-            REST(EIGHT_DOT))
-        NOTE(CS5, QUARTER)
-        NOTE(AS4, EIGHT)
-        REST(EIGHT)
-        NOTE(GS4, QUARTER)
-        NOTE(FS4, EIGHT)
-        REST(EIGHT)
-        NOTE(DS4, EIGHT)
-        REST(THIRTY_SECOND)
-        NOTE(DS4, EIGHT)
-        NOTE(F4, EIGHT)
-        NOTE(FS4, EIGHT)
-        NOTE(DS4, EIGHT))
     // @formatter:on
 };
 #ifdef DISABLE_UNCOMMON_PITCHES

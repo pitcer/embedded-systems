@@ -68,6 +68,8 @@ int main() {
         LED_PORT |= _BV(LED);
         uint16_t adc = ADC; // weź zmierzoną wartość (0..1023)
         const float vin = 1.1;
+	// ADC = V_in * 1024 / V_ref
+	// V_ref = V_in * 1024 / adc
         float vref = (vin * 1024) / adc;
         printf("Odczytano: %fV\r\n", vref);
     }
