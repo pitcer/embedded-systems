@@ -17,6 +17,7 @@
         "math.h": "c",
         "delay.h": "c",
         "stdbool.h": "c",
-        "stdio.h": "c"
+        "stdio.h": "c",
+        "io.h": "c"
     }
 }
