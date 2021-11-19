@@ -8,9 +8,9 @@ uint16_t measure_empty(void) {
 }
 
 #define DEFINE_EMPTY_ASSIGNMENT(type)                \
-    uint16_t measure_empty_assignment_##type(void) { \
+    uint16_t measure_empty_assignment_##type(type argument) { \
         uint16_t start_time = TCNT1;                 \
-        volatile type _ = 1;                         \
+        volatile type _ = argument;                         \
         uint16_t end_time = TCNT1;                   \
         return end_time - start_time;                \
     }

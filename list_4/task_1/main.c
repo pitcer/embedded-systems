@@ -47,7 +47,7 @@ FILE uart_file;
 uint16_t measure_empty(void);
 
 #define DECLARE_EMPTY_ASSIGNMENT(type) \
-    uint16_t measure_empty_assignment_##type(void);
+    uint16_t measure_empty_assignment_##type(type);
 
 #define DECLARE_OPERATION_FUNCTION(name, type) \
     uint16_t measure_##name##_##type(type, type);
@@ -72,8 +72,8 @@ DECLARE_OPERATIONS_FUNCTIONS(float);
 #define PRINT_OPERATION_MEASUREMENT(measurement_name, operation, type, left, right)         \
     uint16_t measurement_name##_empty_measurement = measure_empty();                        \
     uint16_t measurement_name##_measurement = measurement_name(left, right);                \
-    uint16_t measurement_name##_assignment_measurement = measure_empty_assignment_##type(); \
-    printf(#operation " " #type ": %" PRIu16 " cycles\r\n", measurement_name##_measurement - measurement_name##_empty_measurement /* - (measurement_name##_assignment_measurement - measurement_name##_empty_measurement) */);
+    uint16_t measurement_name##_assignment_measurement = measure_empty_assignment_##type(left operation right); \
+    printf(#operation " " #type ": %" PRIu16 " cycles\r\n", measurement_name##_measurement - measurement_name##_empty_measurement - (measurement_name##_assignment_measurement - measurement_name##_empty_measurement) );
 
 #define PRINT_MEASUREMENTS(type, left, right)                              \
     PRINT_OPERATION_MEASUREMENT(measure_add_##type, +, type, left, right); \

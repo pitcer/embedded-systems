@@ -9,13 +9,18 @@
 #define DETECTOR_PIN PINB
 #define DETECTOR_PORT PORTB
 
+#define ENABLE_TIMER \
+    TCCR1A |= _BV(COM1A1)
+
+#define DISABLE_TIMER \
+    TCCR1A &= ~_BV(COM1A1)
+
 void initialize_timer() {
     // ustaw tryb licznika
     // COM1A = 10   -- non-inverting mode
     // WGM1  = 1110 -- fast PWM top=ICR1
     // CS1   = 001  -- prescaler 1
     // ICR1  = 421
-    // chcemy ....
     // częstotliwość 16e6/(1024*(1+15624)) = 1 Hz
     // wzór: datasheet 20.12.3 str. 164
     ICR1 = 421;
@@ -32,43 +37,34 @@ int main() {
     // ustaw wypełnienie 50%
     OCR1A = ICR1 / 2;
 
-    // TEMP
-    // DDRB |= _BV(PB1);
-    // PORTB |= _BV(PB1);
-    // END TEMP
-
     while (1) {
-
-        if (DETECTOR_PIN & _BV(DETECTOR)) {
-            LED_PORT &= ~_BV(LED);
-        } else {
-            LED_PORT |= _BV(LED);
-        }
-
-        for (uint8_t i = 0; i < 5; i++) {
-            // ENABLE TIMER
-            TCCR1A |= _BV(COM1A1);
+        for (uint8_t index = 0; index < 5; index++) {
+            ENABLE_TIMER;
 
             _delay_us(600);
 
-            // DISABLE TIMER
-            TCCR1A &= ~_BV(COM1A1);
+            if (DETECTOR_PIN & _BV(DETECTOR)) {
+                LED_PORT &= ~_BV(LED);
+            } else {
+                LED_PORT |= _BV(LED);
+            }
+
+            DISABLE_TIMER;
 
             _delay_us(600);
         }
-        // ENABLE TIMER
-        TCCR1A |= _BV(COM1A1);
 
+        ENABLE_TIMER;
+        
         _delay_us(600);
 
-        // DISABLE TIMER
-        TCCR1A &= ~_BV(COM1A1);
-
         if (DETECTOR_PIN & _BV(DETECTOR)) {
             LED_PORT &= ~_BV(LED);
         } else {
             LED_PORT |= _BV(LED);
         }
+
+        DISABLE_TIMER;
 
         _delay_us(100000 - (2 * 600 * 5 + 600));
     }
