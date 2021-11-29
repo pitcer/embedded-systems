@@ -1,0 +1,206 @@
+#include <avr/interrupt.h>
+#include <avr/io.h>
+#include <avr/sleep.h>
+#include <inttypes.h>
+#include <stdbool.h>
+#include <stdio.h>
+#include <util/delay.h>
+
+#define BAUD 9600 // baudrate
+#define UBRR_VALUE ((F_CPU) / 16 / (BAUD)-1) // zgodnie ze wzorem
+
+// inicjalizacja UART
+static inline void initialize_uart() {
+    // ustaw baudrate
+    UBRR0 = UBRR_VALUE;
+    // UDR0 = 0;
+    // wyczyść rejestr UCSR0A
+    UCSR0A &= ~_BV(UDRE0);
+    // UCSR0A = 0;
+    // włącz odbiornik i nadajnik
+    UCSR0B |= _BV(RXCIE0); // receive complete interrupt enable
+    UCSR0B |= _BV(TXCIE0); // transmit complete interrupt enable
+    // UCSR0B |= _BV(UDRIE0); // Data Register Empty Interrupt Enable
+    UCSR0B |= _BV(RXEN0); // enable receiver
+    UCSR0B |= _BV(TXEN0); // enable transmitter
+    // UCSR0C = _BV(UCSZ00) | _BV(UCSZ01); // character size 8 bits; set by default
+}
+
+#define BUFFER_SIZE 256
+#define BUFFER_DATA uint8_t
+#define BUFFER_POINTER uint8_t
+
+// typedef struct {
+//     BUFFER_DATA buffer[BUFFER_SIZE];
+//     BUFFER_POINTER read;
+//     BUFFER_POINTER write;
+// } CircularBuffer;
+
+// static bool buffer_is_empty(CircularBuffer* buffer) {
+//     return buffer->read == buffer->write;
+// }
+
+// static bool buffer_is_full(CircularBuffer* buffer) {
+//     return (buffer->write + 1) % BUFFER_SIZE == buffer->read;
+// }
+
+// static BUFFER_DATA buffer_read(CircularBuffer* buffer) {
+//     BUFFER_POINTER read = buffer->read;
+//     buffer->read = (read + 1) % BUFFER_SIZE;
+//     return buffer->buffer[read];
+// }
+
+// static void buffer_write(CircularBuffer* buffer, BUFFER_DATA data) {
+//     BUFFER_POINTER write = buffer->write;
+//     buffer->write = (write + 1) % BUFFER_SIZE;
+//     buffer->buffer[write] = data;
+// }
+
+// static volatile CircularBuffer transmitter_buffer;
+// static volatile CircularBuffer receiver_buffer;
+
+#define BUFFER_CREATE(name)                                 \
+    static volatile BUFFER_DATA name##_buffer[BUFFER_SIZE]; \
+    static volatile BUFFER_POINTER name##_read = 0;         \
+    static volatile BUFFER_POINTER name##_write = 0;
+
+#define BUFFER_READ(name, result)           \
+    BUFFER_POINTER read = name##_read;      \
+    name##_read = (read + 1) % BUFFER_SIZE; \
+    result = name##_buffer[read];
+
+#define BUFFER_WRITE(name, data)              \
+    BUFFER_POINTER write = name##_write;      \
+    name##_write = (write + 1) % BUFFER_SIZE; \
+    name##_buffer[write] = data;
+
+#define BUFFER_IS_EMPTY(name) (name##_read == name##_write)
+
+#define BUFFER_IS_FULL(name) ((name##_write + 1) % BUFFER_SIZE == name##_read)
+
+BUFFER_CREATE(receiver);
+#define RECEIVER_READ(result) BUFFER_READ(receiver, result)
+#define RECEIVER_WRITE(data) BUFFER_WRITE(receiver, data)
+#define RECEIVER_IS_EMPTY BUFFER_IS_EMPTY(receiver)
+#define RECEIVER_IS_FULL BUFFER_IS_FULL(receiver)
+
+BUFFER_CREATE(transmitter);
+#define TRANSMITTER_READ(result) BUFFER_READ(transmitter, result)
+#define TRANSMITTER_WRITE(data) BUFFER_WRITE(transmitter, data)
+#define TRANSMITTER_IS_EMPTY BUFFER_IS_EMPTY(transmitter)
+#define TRANSMITTER_IS_FULL BUFFER_IS_FULL(transmitter)
+
+// static volatile BUFFER_DATA transmitter_buffer[BUFFER_SIZE];
+// static volatile BUFFER_POINTER transmitter_read = 0;
+// static volatile BUFFER_POINTER transmitter_write = 0;
+
+static volatile uint8_t uart_mask = 0;
+
+#define UART_RECEIVED 0
+#define UART_PENDING_TRANSMISSION 1
+
+ISR(USART_RX_vect) {
+    // putchar('c');
+    // uint8_t received = UDR0;
+    // buffer_write(&receiver_buffer, received);
+}
+
+ISR(USART_TX_vect) {
+    // putchar('b');
+    // UCSR0B &= ~_BV(TXCIE0);
+    // UCSR0A &= ~_BV(UDRE0);
+    // UCSR0A |= _BV(UDRE0);
+    // UCSR0B |= _BV(UDRIE0);
+    // uart_mask &= ~_BV(UART_PENDING_TRANSMISSION);
+}
+
+ISR(USART_UDRE_vect) {
+    // putchar('a');
+    // if (!buffer_is_empty(&transmitter_buffer) /*  && !(uart_mask & _BV(UART_PENDING_TRANSMISSION)) */) {
+    if (!TRANSMITTER_IS_EMPTY) {
+        // UCSR0A &= ~_BV(UDRE0);
+        // uart_mask |= _BV(UART_PENDING_TRANSMISSION);
+        // BUFFER_DATA data = buffer_read(&transmitter_buffer);
+        // UDR0 = data;
+        TRANSMITTER_READ(UDR0);
+        // UCSR0B &= ~_BV(UDRIE0);
+        // UCSR0B |= _BV(TXCIE0);
+    } else {
+        UCSR0B &= ~_BV(UDRIE0);
+    }
+}
+
+int uart_transmit(char data, FILE* stream) {
+    // while (buffer_is_full(&transmitter_buffer)) { }
+    while (TRANSMITTER_IS_FULL) { }
+    cli();
+    UCSR0B |= _BV(UDRIE0);
+    TRANSMITTER_WRITE(data);
+    // UCSR0A |= _BV(UDRE0);
+    sei();
+    return 0;
+}
+
+int uart_receive(FILE* stream) {
+    // while (buffer_is_empty(&receiver_buffer)) { }
+    // return buffer_read(&receiver_buffer);
+    return 0;
+}
+
+int uart_transmit_legacy(char data, FILE* stream) {
+    // czekaj aż transmiter gotowy
+    while (!(UCSR0A & _BV(UDRE0)))
+        ;
+    UDR0 = data;
+    return 0;
+}
+
+int uart_receive_legacy(FILE* stream) {
+    // czekaj aż znak dostępny
+    while (!(UCSR0A & _BV(RXC0)))
+        ;
+    return UDR0;
+}
+
+FILE uart_file;
+
+int main() {
+    initialize_uart();
+
+    // UCSR0B &= ~_BV(RXCIE0); // receive complete interrupt enable
+    // UCSR0B &= ~_BV(TXCIE0); // transmit complete interrupt enable
+    // UCSR0B &= ~_BV(UDRIE0); // Data Register Empty Interrupt Enable
+    // fdev_setup_stream(&uart_file, uart_transmit_legacy, uart_receive_legacy, _FDEV_SETUP_RW);
+    fdev_setup_stream(&uart_file, uart_transmit, uart_receive, _FDEV_SETUP_RW);
+    stdin = stdout = stderr = &uart_file;
+
+    sei();
+
+    // printf("%u, %u\n", buffer_is_empty(&receiver_buffer), buffer_is_full(&receiver_buffer));
+    // buffer_write(&receiver_buffer, 1);
+    // printf("%u, %u\n", buffer_is_empty(&receiver_buffer), buffer_is_full(&receiver_buffer));
+    // buffer_write(&receiver_buffer, 2);
+    // printf("%u, %u\n", buffer_is_empty(&receiver_buffer), buffer_is_full(&receiver_buffer));
+    // buffer_write(&receiver_buffer, 3);
+    // printf("%u, %u\n", buffer_is_empty(&receiver_buffer), buffer_is_full(&receiver_buffer));
+    // // buffer_write(&receiver_buffer, 4);
+    // buffer_read(&receiver_buffer);
+    // printf("%u, %u\n", buffer_is_empty(&receiver_buffer), buffer_is_full(&receiver_buffer));
+    // buffer_read(&receiver_buffer);
+    // printf("%u, %u\n", buffer_is_empty(&receiver_buffer), buffer_is_full(&receiver_buffer));
+    // buffer_write(&receiver_buffer, 3);
+    // printf("%u, %u\n", buffer_is_empty(&receiver_buffer), buffer_is_full(&receiver_buffer));
+    // buffer_read(&receiver_buffer);
+    // printf("%u, %u\n", buffer_is_empty(&receiver_buffer), buffer_is_full(&receiver_buffer));
+    // buffer_read(&receiver_buffer);
+    // printf("%u, %u\n", buffer_is_empty(&receiver_buffer), buffer_is_full(&receiver_buffer));
+
+    while (1) {
+        // cli();
+        // uart_transmit('a', &uart_file);
+        printf("Hello world!\r\n");
+        // printf("Foobar\r\n");
+        // sei();
+        // _delay_ms(1000);
+    }
+}
