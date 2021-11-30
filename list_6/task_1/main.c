@@ -17,7 +17,7 @@ static inline void initialize_uart() {
     // włącz odbiornik i nadajnik
     UCSR0B |= _BV(RXEN0); // enable receiver
     UCSR0B |= _BV(TXEN0); // enable transmitter
-    // UCSR0C = _BV(UCSZ00) | _BV(UCSZ01); // character size 8 bits; set by default
+    UCSR0C = _BV(UCSZ00) | _BV(UCSZ01); // character size 8 bits; set by default
 }
 
 ISR(USART_RX_vect) {

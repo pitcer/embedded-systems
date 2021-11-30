@@ -18,7 +18,7 @@ static void initialize_uart() {
     // włącz odbiornik i nadajnik
     UCSR0B |= _BV(RXEN0); // enable receiver
     UCSR0B |= _BV(TXEN0); // enable transmitter
-    // UCSR0C = _BV(UCSZ00) | _BV(UCSZ01); // character size 8 bits; set by default
+    UCSR0C = _BV(UCSZ00) | _BV(UCSZ01); // character size 8 bits; set by default
 }
 
 #define BUFFER_SIZE 256
@@ -71,7 +71,11 @@ ISR(USART_RX_vect) {
 }
 
 // Transmit Complete Interrupt
-ISR(USART_TX_vect) { }
+ISR(USART_TX_vect) {
+    // if (TRANSMITTER_IS_EMPTY) {
+         // DISABLE_DATA_REGISTER_EMPTY_INTERRUPT;
+    // }
+}
 
 // Data Register Empty Interrupt
 ISR(USART_UDRE_vect) {
@@ -127,5 +131,12 @@ int main() {
         scanf("%u", &input);
         printf("Foobar %u\r\n", input);
         _delay_ms(1000);
+        for (uint8_t index = 0; index < 10; index++) {
+            printf("foo\r\n");
+            _delay_ms(100);
+        }
+        while (1) {
+            printf("bar\r\n");
+        }
     }
 }

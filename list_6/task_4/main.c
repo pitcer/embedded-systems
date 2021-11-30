@@ -43,6 +43,7 @@ static void initialize_spi() {
     SPCR = _BV(SPIE) | _BV(SPE) | _BV(MSTR) | _BV(SPR1);
 }
 
+// SPI transfer complete
 ISR(SPI_STC_vect) {
     // załaduj nowy stan diód
     PORTB |= _BV(LA);
