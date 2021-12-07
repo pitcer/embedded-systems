@@ -18,6 +18,7 @@
         "delay.h": "c",
         "stdbool.h": "c",
         "stdio.h": "c",
-        "io.h": "c"
+        "io.h": "c",
+        "twi.h": "c"
     }
 }
