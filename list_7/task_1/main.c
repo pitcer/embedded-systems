@@ -87,25 +87,6 @@ static void read_input(char* buffer, uint8_t* length) {
         error_handler;                                                                \
     }
 
-/*
-000: 1
-001: 2
-002: 3
-003: 4
-004: 5
-005: 6
-006: 7
-007: 8
-008: 9
-009: a
-00a: 5
-00b: 2
-00c: 54
-00d: 5b
-00e: 62
-00f: 2
-*/
-
 static void handle_read(uint16_t address) {
     i2cStart();
     i2cCheck(0x08, "I2C start");
