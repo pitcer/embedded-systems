@@ -5,7 +5,10 @@
             "cStandard": "c17",
             "compilerPath": "/usr/bin/avr-gcc",
             "includePath": [
-                "/usr/avr/include"
+                "/usr/avr/include",
+                "${workspaceFolder}/fritos/FreeRTOS/Source/include",
+                "${workspaceFolder}/fritos/**",
+                "${workspaceFolder}/fritos/FreeRTOS/Source/portable/GCC/ATMega328"
             ],
             "compilerArgs": [
                 "-mmcu=atmega328p",

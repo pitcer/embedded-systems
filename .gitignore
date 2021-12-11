@@ -1,3 +1,4 @@
+fritos/
 *.bin
 *.elf
 *.hex
@@ -5,3 +6,7 @@
 *.o
 *.srec
 *.lst
+*.d
+*.sym
+*.lss
+*.eep

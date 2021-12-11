@@ -1,0 +1,57 @@
+#include <avr/io.h>
+#include <inttypes.h>
+#include <util/delay.h>
+
+// #define CYLON_EYE_DELAY 100
+
+// int main() {
+//     UCSR0B &= ~_BV(RXEN0) & ~_BV(TXEN0);
+
+//     DDRD |= 0xFF;
+
+//     uint8_t index = 0;
+//     while (1) {
+//         for (; index < 7; index++) {
+//             PORTD = _BV(index);
+//             _delay_ms(DELAY);
+//         }
+
+//         for (; index > 0; index--) {
+//             PORTD = _BV(index);
+//             _delay_ms(DELAY);
+//         }
+//     }
+// }
+
+#define BUTTON_PORT PORTC
+#define BUTTON_PIN PINC
+#define BUTTON PC4
+
+#define LED_PORT PORTC
+#define LED_DDR DDRC
+#define LED PC5
+
+#define BUFFER_SIZE 100
+#define LED_DELAY 10
+
+int main() {
+    UCSR0B &= ~_BV(RXEN0) & ~_BV(TXEN0);
+
+    LED_DDR |= _BV(LED);
+    LED_PORT &= ~_BV(LED);
+
+    BUTTON_PORT |= _BV(BUTTON);
+
+    uint8_t buffer[BUFFER_SIZE] = { 0 };
+    uint8_t write_position = 0;
+    while (1) {
+        buffer[write_position] = !((BUTTON_PIN & _BV(BUTTON)) >> BUTTON);
+        write_position = (write_position + 1) % BUFFER_SIZE;
+        LED_PORT = (LED_PORT & ~_BV(LED)) | buffer[write_position] << LED;
+        _delay_ms(LED_DELAY);
+    }
+}
+
+int main(void) {
+    return 0;
+}
