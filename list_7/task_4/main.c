@@ -38,6 +38,7 @@ int uart_receive(FILE* stream) {
 FILE uart_file;
 
 #define MASTER_PORT PORTD
+#define MASTER_PIN PIND
 #define MASTER_MISO PD6
 #define MASTER_MOSI PD5
 #define MASTER_SS PD4
@@ -50,7 +51,6 @@ static void initialize_spi() {
     DDRD |= _BV(MASTER_MOSI) | _BV(MASTER_SCK) | _BV(MASTER_SS);
     // włącz SPI w trybie slave
     SPCR = _BV(SPE);
-    SPDR;
 }
 
 #define SET(port, pin) (port) |= _BV(pin)
@@ -61,19 +61,14 @@ static void initialize_spi() {
 #define MASTER_SET(pin) SET(MASTER_PORT, pin)
 #define MASTER_CLEAR(pin) CLEAR(MASTER_PORT, pin)
 #define MASTER_SET_VALUE(pin, value) SET_VALUE(MASTER_PORT, pin, value)
-#define MASTER_GET(pin) GET(MASTER_PORT, pin)
+#define MASTER_GET(pin) GET(MASTER_PIN, pin)
 
 static uint8_t spi_slave_receive(void) {
     return SPDR;
 }
 
 static void spi_slave_transmit(uint8_t data) {
-    // SPDR = data;
-    SPDR = 0x12;
-    // czekaj na ukończenie transmisji
-    // loop_until_bit_is_set(SPSR, SPIF);
-    // wyczyść flagę przerwania
-    // SPSR |= _BV(SPIF);
+    SPDR = data;
 }
 
 static void spi_master_transmit(uint8_t data) {
@@ -83,7 +78,9 @@ static void spi_master_transmit(uint8_t data) {
     for (uint8_t index = 0; index < 8; index++) {
         const uint8_t bit = (data >> (7 - index)) & 0x01;
         MASTER_SET_VALUE(MASTER_MOSI, bit);
+        _delay_us(1);
         MASTER_SET(MASTER_SCK);
+        _delay_us(1);
         MASTER_CLEAR(MASTER_MOSI);
         MASTER_CLEAR(MASTER_SCK);
     }
@@ -100,15 +97,11 @@ static uint8_t spi_master_receive(void) {
     MASTER_CLEAR(MASTER_SCK);
 
     for (uint8_t index = 0; index < 8; index++) {
-        // const uint8_t bit = (data >> (7 - index)) & 0x01;
-        _delay_us(10);
-        MASTER_SET(MASTER_MOSI);
+        _delay_us(1);
         MASTER_SET(MASTER_SCK);
-        printf("%x\r\n", MASTER_PORT);
         uint8_t bit = MASTER_GET(MASTER_MISO);
-        result |= bit << index;
-        _delay_us(10);
-        MASTER_CLEAR(MASTER_MOSI);
+        result |= bit << (7 - index);
+        _delay_us(1);
         MASTER_CLEAR(MASTER_SCK);
     }
 
@@ -127,25 +120,23 @@ int main(void) {
 
     MASTER_SET(MASTER_SS);
     MASTER_SET(MASTER_MOSI);
-    MASTER_SET(MASTER_MISO);
     SET(PORTB, PB4);
 
     initialize_spi();
 
     uint8_t master_data = 0;
     while (1) {
-        // spi_master_transmit(master_data);
-        // printf("[master] transmitted: %" PRIx8 "\r\n", master_data);
-        // _delay_ms(250);
+        spi_master_transmit(master_data);
+        printf("[master] transmitted: %" PRIx8 "\r\n", master_data);
+        _delay_ms(250);
 
-        // uint8_t slave_data = spi_slave_receive();
-        // printf("[slave] received: %" PRIx8 "\r\n", slave_data);
-        // _delay_ms(250);
+        uint8_t slave_data = spi_slave_receive();
+        printf("[slave] received: %" PRIx8 "\r\n", slave_data);
+        _delay_ms(250);
 
-        // slave_data++;
-        // spi_slave_transmit(slave_data);
-        spi_slave_transmit(1);
-        // printf("[slave] transmitted: %" PRIx8 "\r\n", slave_data);
+        slave_data++;
+        spi_slave_transmit(slave_data);
+        printf("[slave] transmitted: %" PRIx8 "\r\n", slave_data);
         _delay_ms(250);
 
         master_data = spi_master_receive();
