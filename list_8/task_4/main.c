@@ -8,16 +8,63 @@
 #include <avr/sleep.h>
 #include <stdio.h>
 
-#define DEBUG
-#undef DEBUG
+#define BAUD 9600 // baudrate
+#define UBRR_VALUE ((F_CPU) / 16 / (BAUD)-1) // zgodnie ze wzorem
 
-#ifdef DEBUG
-#define DEBUG_LED PB5
-#define DEBUG_LED_DDR DDRB
-#define DEBUG_LED_PORT PORTB
-#define DEBUG_VALUE 0b01010101
-static volatile StackType_t* debug_address;
-#endif
+// inicjalizacja UART
+static void initialize_uart(void) {
+    // ustaw baudrate
+    UBRR0 = UBRR_VALUE;
+    // wyczyść USART Data Register Empty
+    UCSR0A &= ~_BV(UDRE0);
+    UCSR0B |= _BV(RXCIE0); // receive complete interrupt enable
+    UCSR0B |= _BV(RXEN0); // enable receiver
+    UCSR0B |= _BV(TXEN0); // enable transmitter
+    UCSR0C = _BV(UCSZ00) | _BV(UCSZ01); // character size 8 bits; set by default
+}
+
+#define QUEUE_SIZE 64
+#define QUEUE_ITEM uint8_t
+#define QUEUE_ITEM_SIZE sizeof(QUEUE_ITEM)
+
+QueueHandle_t receiver_queue;
+QueueHandle_t transmitter_queue;
+
+#define ENABLE_DATA_REGISTER_EMPTY_INTERRUPT UCSR0B |= _BV(UDRIE0)
+#define DISABLE_DATA_REGISTER_EMPTY_INTERRUPT UCSR0B &= ~_BV(UDRIE0)
+
+// Receive Complete Interrupt
+ISR(USART_RX_vect) {
+    if (!xQueueIsQueueFullFromISR(receiver_queue)) {
+        uint8_t data = UDR0;
+        xQueueSendFromISR(receiver_queue, &data, NULL);
+    }
+}
+
+// Data Register Empty Interrupt
+ISR(USART_UDRE_vect) {
+    uint8_t data;
+    BaseType_t result = xQueueReceiveFromISR(transmitter_queue, &data, NULL);
+    if (result) {
+        UDR0 = data;
+    } else {
+        DISABLE_DATA_REGISTER_EMPTY_INTERRUPT;
+    }
+}
+
+static int uart_transmit(char data, FILE* stream) {
+    xQueueSend(transmitter_queue, &data, portMAX_DELAY);
+    ENABLE_DATA_REGISTER_EMPTY_INTERRUPT;
+    return 0;
+}
+
+static int uart_receive(FILE* stream) {
+    QUEUE_ITEM result;
+    xQueueReceive(receiver_queue, &result, portMAX_DELAY);
+    return result;
+}
+
+FILE uart_file;
 
 #define POTENTIOMETER_MUX ADC0D
 #define THERMISTOR_MUX ADC1D
@@ -32,49 +79,56 @@ static void initialize_adc(void) {
     ADCSRA |= _BV(ADEN); // włącz ADC
 }
 
-static volatile SemaphoreHandle_t read_adc_mutex;
-static volatile SemaphoreHandle_t adc_ready_semaphore;
-
-#define ENABLE_ADC_INTERRUPT ADCSRA |= _BV(ADIE)
+#define ENABLE_ADC_INTERRUPT ADCSRA |= _BV(ADIE);
 #define DISABLE_ADC_INTERRUPT ADCSRA &= ~_BV(ADIE);
+#define START_ADC_CONVERSION ADCSRA |= _BV(ADSC);
 
-static uint16_t read_adc(uint8_t mux) {
-    mux &= 0x0F;
+SemaphoreHandle_t read_adc_mutex = NULL;
+StaticSemaphore_t read_adc_mutex_buffer;
 
-    assert(xSemaphoreTake(read_adc_mutex, portMAX_DELAY));
-
-    ADMUX |= mux;
-    ENABLE_ADC_INTERRUPT;
-    // Semafor jest na wejściu wzięty, więc tutaj poczekamy,
-    // aż zostanie oddany przez ADC interrupt handler.
-    assert(xSemaphoreTake(adc_ready_semaphore, portMAX_DELAY));
-    uint16_t adc_result = ADC;
-    ADMUX &= ~mux;
-
-    assert(xSemaphoreGive(read_adc_mutex));
-
-    return adc_result;
-}
+SemaphoreHandle_t adc_ready_semaphore = NULL;
+StaticSemaphore_t adc_ready_semaphore_buffer;
 
 ISR(ADC_vect) {
     xSemaphoreGiveFromISR(adc_ready_semaphore, NULL);
     DISABLE_ADC_INTERRUPT;
 }
 
-#define DEFINE_ADC_READ_TASK(name, mux, delay, format)       \
-    static void name##_task(void* parameters) {              \
-        (void)parameters;                                    \
-        TickType_t previous_wake_time = xTaskGetTickCount(); \
-        while (1) {                                          \
-            vTaskDelayUntil(&previous_wake_time, delay);     \
-            uint16_t adc_result = read_adc(mux);             \
-            printf(format "\r\n", adc_result);               \
-        }                                                    \
+static uint16_t read_adc(uint8_t mux) {
+    mux &= 0x0F;
+
+    xSemaphoreTake(read_adc_mutex, portMAX_DELAY);
+
+    ADMUX |= mux;
+    ENABLE_ADC_INTERRUPT;
+    START_ADC_CONVERSION;
+
+    // Semafor jest na wejściu wzięty, więc tutaj poczekamy,
+    // aż zostanie oddany przez ADC interrupt handler.
+    xSemaphoreTake(adc_ready_semaphore, portMAX_DELAY);
+
+    uint16_t adc_result = ADC;
+    ADMUX &= ~mux;
+
+    xSemaphoreGive(read_adc_mutex);
+
+    return adc_result;
+}
+
+#define DEFINE_ADC_READ_TASK(name, mux, delay, format)           \
+    static void name##_task(void* parameters) {                  \
+        (void)parameters;                                        \
+        while (1) {                                              \
+            TickType_t previous_wake_time = xTaskGetTickCount(); \
+            vTaskDelayUntil(&previous_wake_time, delay);         \
+            uint16_t adc_result = read_adc(mux);                 \
+            printf(format "\r\n", adc_result);                   \
+        }                                                        \
     }
 
 #define POTENTIOMETER_DELAY 642
 
-#define POTENTIOMETER_TASK_STACK_SIZE configMINIMAL_STACK_SIZE + 64
+#define POTENTIOMETER_TASK_STACK_SIZE configMINIMAL_STACK_SIZE + 200
 #define POTENTIOMETER_TASK_PRIORITY 1
 
 DEFINE_ADC_READ_TASK(potentiometer, POTENTIOMETER_MUX, POTENTIOMETER_DELAY,
@@ -82,7 +136,7 @@ DEFINE_ADC_READ_TASK(potentiometer, POTENTIOMETER_MUX, POTENTIOMETER_DELAY,
 
 #define THERMISTOR_DELAY 913
 
-#define THERMISTOR_TASK_STACK_SIZE configMINIMAL_STACK_SIZE + 64
+#define THERMISTOR_TASK_STACK_SIZE configMINIMAL_STACK_SIZE + 200
 #define THERMISTOR_TASK_PRIORITY 1
 
 DEFINE_ADC_READ_TASK(thermistor, THERMISTOR_MUX, THERMISTOR_DELAY,
@@ -90,7 +144,7 @@ DEFINE_ADC_READ_TASK(thermistor, THERMISTOR_MUX, THERMISTOR_DELAY,
 
 #define PHOTORESISTOR_DELAY 1421
 
-#define PHOTORESISTOR_TASK_STACK_SIZE configMINIMAL_STACK_SIZE + 64
+#define PHOTORESISTOR_TASK_STACK_SIZE configMINIMAL_STACK_SIZE + 200
 #define PHOTORESISTOR_TASK_PRIORITY 1
 
 DEFINE_ADC_READ_TASK(photoresistor, PHOTORESISTOR_MUX, PHOTORESISTOR_DELAY,
@@ -120,68 +174,8 @@ static void blinking_led_task(void* parameters) {
     }
 }
 
-#define BAUD 9600 // baudrate
-#define UBRR_VALUE ((F_CPU) / 16 / (BAUD)-1) // zgodnie ze wzorem
-
-// inicjalizacja UART
-static void initialize_uart(void) {
-    // ustaw baudrate
-    UBRR0 = UBRR_VALUE;
-    // wyczyść USART Data Register Empty
-    UCSR0A &= ~_BV(UDRE0);
-    UCSR0B |= _BV(RXCIE0); // receive complete interrupt enable
-    UCSR0B |= _BV(RXEN0); // enable receiver
-    UCSR0B |= _BV(TXEN0); // enable transmitter
-    UCSR0C = _BV(UCSZ00) | _BV(UCSZ01); // character size 8 bits; set by default
-}
-
-#define QUEUE_SIZE 128
-#define QUEUE_ITEM uint8_t
-#define QUEUE_ITEM_SIZE sizeof(QUEUE_ITEM)
-
-static volatile QueueHandle_t receiver_queue;
-static volatile QueueHandle_t transmitter_queue;
-
-#define ENABLE_DATA_REGISTER_EMPTY_INTERRUPT UCSR0B |= _BV(UDRIE0)
-#define DISABLE_DATA_REGISTER_EMPTY_INTERRUPT UCSR0B &= ~_BV(UDRIE0)
-
-// Receive Complete Interrupt
-ISR(USART_RX_vect) {
-    xQueueSendFromISR(receiver_queue, &UDR0, NULL);
-}
-
-// Data Register Empty Interrupt
-ISR(USART_UDRE_vect) {
-    BaseType_t result = xQueueReceiveFromISR(transmitter_queue, &UDR0, NULL);
-    if (!result) {
-        DISABLE_DATA_REGISTER_EMPTY_INTERRUPT;
-    }
-}
-
-static int uart_transmit(char data, FILE* stream) {
-    xQueueSend(transmitter_queue, &data, portMAX_DELAY);
-    ENABLE_DATA_REGISTER_EMPTY_INTERRUPT;
-    return 0;
-}
-
-static int uart_receive(FILE* stream) {
-    QUEUE_ITEM result;
-    xQueueReceive(receiver_queue, &result, portMAX_DELAY);
-    return result;
-}
-
-FILE uart_file;
-
 void vApplicationIdleHook(void) {
-#ifdef DEBUG
-    if (*debug_address != DEBUG_VALUE) {
-        DEBUG_LED_PORT |= _BV(DEBUG_LED);
-    }
-#endif
     sleep_mode();
-#ifdef DEBUG
-    DEBUG_LED_PORT &= ~_BV(DEBUG_LED);
-#endif
 }
 
 #define IDLE_TASK_STACK_SIZE configMINIMAL_STACK_SIZE + (2 * QUEUE_SIZE * QUEUE_ITEM_SIZE)
@@ -201,7 +195,7 @@ void vApplicationGetIdleTaskMemory(
 }
 
 #define CREATE_STATIC_TASK(handler, name, stack_size, parameters, priority) \
-    static StackType_t name##_task_stack[stack_size];                       \
+    StackType_t name##_task_stack[stack_size];                              \
     static StaticTask_t name##_task_buffer;                                 \
     xTaskHandle name##_task_handle = xTaskCreateStatic(                     \
         handler, #name, stack_size, parameters, priority,                   \
@@ -223,17 +217,17 @@ int main(void) {
     fdev_setup_stream(&uart_file, uart_transmit, uart_receive, _FDEV_SETUP_RW);
     stdin = stdout = stderr = &uart_file;
 
-    static StaticSemaphore_t read_adc_mutex_buffer;
-    read_adc_mutex = xSemaphoreCreateMutexStatic(&read_adc_mutex_buffer);
-    assert(read_adc_mutex != NULL);
-
-    static StaticSemaphore_t adc_ready_semaphore_buffer;
-    adc_ready_semaphore = xSemaphoreCreateBinaryStatic(&adc_ready_semaphore_buffer);
-    assert(adc_ready_semaphore != NULL);
+    sei();
 
     initialize_adc();
 
     set_sleep_mode(SLEEP_MODE_IDLE);
+
+    read_adc_mutex = xSemaphoreCreateMutexStatic(&read_adc_mutex_buffer);
+    assert(read_adc_mutex != NULL);
+
+    adc_ready_semaphore = xSemaphoreCreateBinaryStatic(&adc_ready_semaphore_buffer);
+    assert(adc_ready_semaphore != NULL);
 
     CREATE_STATIC_TASK(potentiometer_task, potenti,
         POTENTIOMETER_TASK_STACK_SIZE, NULL, POTENTIOMETER_TASK_PRIORITY);
@@ -246,18 +240,6 @@ int main(void) {
 
     CREATE_STATIC_TASK(blinking_led_task, blnkled,
         BLINKING_LED_TASK_STACK_SIZE, NULL, BLINKING_LED_TASK_PRIORITY);
-
-#ifdef DEBUG
-    DEBUG_LED_DDR |= _BV(DEBUG_LED);
-    debug_address = io_task_stack;
-    *debug_address = DEBUG_VALUE;
-#endif
-
-    sei();
-
-    printf(
-        "| Potentiometer |    Thermistor |  Photoresitor |\r\n"
-        "| ------------- | ------------- | ------------- |\r\n");
 
     vTaskStartScheduler();
     return 0;

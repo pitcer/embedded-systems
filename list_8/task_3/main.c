@@ -87,13 +87,19 @@ static volatile QueueHandle_t transmitter_queue;
 
 // Receive Complete Interrupt
 ISR(USART_RX_vect) {
-    xQueueSendFromISR(receiver_queue, &UDR0, NULL);
+    if (!xQueueIsQueueFullFromISR(receiver_queue)) {
+        uint8_t data = UDR0;
+        xQueueSendFromISR(receiver_queue, &data, NULL);
+    }
 }
 
 // Data Register Empty Interrupt
 ISR(USART_UDRE_vect) {
-    BaseType_t result = xQueueReceiveFromISR(transmitter_queue, &UDR0, NULL);
-    if (!result) {
+    uint8_t data;
+    BaseType_t result = xQueueReceiveFromISR(transmitter_queue, &data, NULL);
+    if (result) {
+        UDR0 = data;
+    } else {
         DISABLE_DATA_REGISTER_EMPTY_INTERRUPT;
     }
 }
@@ -143,7 +149,7 @@ void vApplicationGetIdleTaskMemory(
 }
 
 #define CREATE_STATIC_TASK(handler, name, stack_size, parameters, priority) \
-    static StackType_t name##_task_stack[stack_size];                       \
+    StackType_t name##_task_stack[stack_size];                              \
     static StaticTask_t name##_task_buffer;                                 \
     xTaskHandle name##_task_handle = xTaskCreateStatic(                     \
         handler, #name, stack_size, parameters, priority,                   \

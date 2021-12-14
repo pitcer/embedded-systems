@@ -52,7 +52,7 @@ $(SOURCE_DIR)/list.c \
 $(SOURCE_DIR)/croutine.c \
 $(PORT_DIR)/port.c \
 
-# $(SOURCE_DIR)/portable/MemMang/heap_1.c
+# $(SOURCE_DIR)/portable/MemMang/heap_1.c \
 
 # Optional compiler flags.
 #  -g:        generate debugging information (for GDB, or for COFF conversion)
