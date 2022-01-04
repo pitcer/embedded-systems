@@ -41,6 +41,7 @@ static int uart_receive(FILE* stream) {
 
 FILE uart_file;
 
+// #define ACTIVE_THERMISTOR_MUX ADC0D
 #define ACTIVE_THERMISTOR_MUX ADC3D
 
 static inline void initialize_adc(void) {
@@ -48,7 +49,7 @@ static inline void initialize_adc(void) {
     // pomiar ADC3
     ADMUX |= ACTIVE_THERMISTOR_MUX;
     // wyłącz wejścia cyfrowe na ADC3
-    DIDR0 = _BV(ACTIVE_THERMISTOR_MUX);
+    DIDR0 = _BV(ADC0D) | _BV(ADC1D) | _BV(ADC2D) | _BV(ACTIVE_THERMISTOR_MUX);
     // częstotliwość zegara ADC 125 kHz (16 MHz / 128)
     ADCSRA = _BV(ADPS0) | _BV(ADPS1) | _BV(ADPS2); // preskaler 128
     ADCSRA |= _BV(ADEN); // włącz ADC
@@ -64,12 +65,12 @@ static inline uint16_t read_adc(void) {
 static inline float read_voltage(void) {
     uint16_t adc = read_adc();
     const float vref = 1.1;
-    return (adc * vref) / 1024.0;
+    return (adc * vref * 1000.0) / 1024.0;
 }
 
 static inline float voltage_to_temperature(float voltage) {
-    const float temperature_coefficient = 10.0 / 1000.0;
-    const float zero_degree_volatage = 500.0 / 1000.0;
+    const float temperature_coefficient = 10.0;
+    const float zero_degree_volatage = 500.0;
     return (voltage - zero_degree_volatage) / temperature_coefficient;
 }
 
@@ -113,7 +114,7 @@ int main(void) {
             float voltage = read_voltage();
             float temperature = voltage_to_temperature(voltage);
 
-            printf("Termperatura: %f°C (%f V)\r\n", temperature, voltage);
+            printf("Temperatura: %f°C (%f mV)\r\n", temperature, voltage);
 
             if (temperature >= goal_temperature) {
                 DISABLE_MOSFET;
