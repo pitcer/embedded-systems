@@ -55,8 +55,8 @@ int main(void) {
         if (adc <= ADC_MAXIMUM / 2) {
             TCCR1A |= _BV(COM1A1);
             TCCR1A &= ~_BV(COM1B1);
-            OCR1A = (ADC_MAXIMUM - adc * 2) * TIMER_ADC_MULTIPLIER;
             PORTB &= ~_BV(TIMER_1B);
+            OCR1A = (ADC_MAXIMUM - adc * 2) * TIMER_ADC_MULTIPLIER;
         } else {
             TCCR1A &= ~_BV(COM1A1);
             TCCR1A |= _BV(COM1B1);

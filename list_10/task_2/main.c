@@ -163,6 +163,9 @@ int main(void) {
         ADMUX &= ~POTENTIOMETER_MUX;
         ADMUX |= MOTOR_MUX;
 
+        set_bit(TIFR1, ICF1);
+        set_bit(TIFR1, TOV1);
+        set_bit(ADCSRA, ADIF);
         sei();
         // ENABLE_ADC_INTERRUPT
         _delay_ms(100);
