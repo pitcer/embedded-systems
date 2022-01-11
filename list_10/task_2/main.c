@@ -99,7 +99,7 @@ static volatile uint16_t mosfet_close_adc = 0;
 
 // Timer/Counter1 Overflow
 ISR(TIMER1_OVF_vect) {
-    if (!get_bit(measure_register, ADC_BUSY) && !get_bit(measure_register, ADC_OPEN_READY) && get_bit(ADCSRA, ADIE)) {
+    if (!get_bit(measure_register, ADC_BUSY) && !get_bit(measure_register, ADC_OPEN_READY)) {
         set_bit(measure_register, MOSFET_OPEN);
         set_bit(measure_register, ADC_BUSY);
         START_ADC_CONVERSION;
@@ -108,7 +108,7 @@ ISR(TIMER1_OVF_vect) {
 
 // Timer/Counter1 Capture Event
 ISR(TIMER1_CAPT_vect) {
-    if (!get_bit(measure_register, ADC_BUSY) && !get_bit(measure_register, ADC_CLOSE_READY) && get_bit(ADCSRA, ADIE)) {
+    if (!get_bit(measure_register, ADC_BUSY) && !get_bit(measure_register, ADC_CLOSE_READY)) {
         set_bit(measure_register, MOSFET_CLOSE);
         set_bit(measure_register, ADC_BUSY);
         START_ADC_CONVERSION;
@@ -143,7 +143,6 @@ int main(void) {
 
     while (1) {
         cli();
-        // DISABLE_ADC_INTERRUPT;
 
         if (get_bit(measure_register, ADC_OPEN_READY)) {
             clear_bit(measure_register, ADC_OPEN_READY);
@@ -156,18 +155,20 @@ int main(void) {
             printf("MOSFET close: %" PRIu32 "mV\r\n", adc_milivolts);
         }
 
+        // DISABLE_ADC_INTERRUPT;
         ADMUX &= ~MOTOR_MUX;
         ADMUX |= POTENTIOMETER_MUX;
         uint16_t adc = read_adc();
         OCR1A = adc * TIMER_ADC_MULTIPLIER;
         ADMUX &= ~POTENTIOMETER_MUX;
         ADMUX |= MOTOR_MUX;
+        // ENABLE_ADC_INTERRUPT
 
         set_bit(TIFR1, ICF1);
         set_bit(TIFR1, TOV1);
         set_bit(ADCSRA, ADIF);
         sei();
-        // ENABLE_ADC_INTERRUPT
+
         _delay_ms(100);
     }
 }
