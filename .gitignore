@@ -1,4 +1,6 @@
 fritos/
+IAR/
+AVR221.zip
 *.bin
 *.elf
 *.hex
