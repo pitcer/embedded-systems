@@ -87,6 +87,6 @@ int main(void) {
         uint32_t adc = read_adc();
         OCR1A = 116 * adc / 33 + 1029;
         // printf("%u %u\r\n", adc, OCR1A);
-        _delay_ms(100);
+        _delay_ms(10);
     }
 }

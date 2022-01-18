@@ -1,6 +1,40 @@
 #include <avr/io.h>
 #include <util/delay.h>
 
+#include <stdio.h>
+
+#define BAUD 9600 // baudrate
+#define UBRR_VALUE ((F_CPU) / 16 / (BAUD)-1) // zgodnie ze wzorem
+
+// inicjalizacja UART
+static inline void uart_init() {
+    // ustaw baudrate
+    UBRR0 = UBRR_VALUE;
+    // włącz odbiornik i nadajnik
+    UCSR0B = _BV(RXEN0) | _BV(TXEN0);
+    // ustaw format 8n1
+    UCSR0C = _BV(UCSZ00) | _BV(UCSZ01);
+}
+
+// transmisja jednego znaku
+static int uart_transmit(char data, FILE* stream) {
+    // czekaj aż transmiter gotowy
+    while (!(UCSR0A & _BV(UDRE0)))
+        ;
+    UDR0 = data;
+    return 0;
+}
+
+// odczyt jednego znaku
+static int uart_receive(FILE* stream) {
+    // czekaj aż znak dostępny
+    while (!(UCSR0A & _BV(RXC0)))
+        ;
+    return UDR0;
+}
+
+FILE uart_file;
+
 #define EN PB0
 #define TIMER_1A PB1
 #define TIMER_1B PB2
@@ -45,6 +79,12 @@ static inline void initialize_timer(void) {
 }
 
 int main(void) {
+    // zainicjalizuj UART
+    // uart_init();
+    // // skonfiguruj strumienie wejścia/wyjścia
+    // fdev_setup_stream(&uart_file, uart_transmit, uart_receive, _FDEV_SETUP_RW);
+    // stdin = stdout = stderr = &uart_file;
+
     initialize_adc();
     initialize_timer();
     DDRB |= _BV(EN);
@@ -57,11 +97,13 @@ int main(void) {
             TCCR1A &= ~_BV(COM1B1);
             PORTB &= ~_BV(TIMER_1B);
             OCR1A = (ADC_MAXIMUM - adc * 2) * TIMER_ADC_MULTIPLIER;
+            // printf("%u %u\r\n", adc, OCR1A);
         } else {
             TCCR1A &= ~_BV(COM1A1);
             TCCR1A |= _BV(COM1B1);
             PORTB &= ~_BV(TIMER_1A);
             OCR1B = (ADC_MAXIMUM - (ADC_MAXIMUM - adc) * 2) * TIMER_ADC_MULTIPLIER;
+            // printf("%u %u\r\n", adc, OCR1B);
         }
         _delay_ms(100);
     }
