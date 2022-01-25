@@ -1,0 +1,153 @@
+#include <avr/interrupt.h>
+#include <avr/io.h>
+#include <math.h>
+#include <stdio.h>
+#include <util/delay.h>
+
+#define BAUD 9600 // baudrate
+#define UBRR_VALUE ((F_CPU) / 16 / (BAUD)-1) // zgodnie ze wzorem
+
+// inicjalizacja UART
+static inline void uart_init(void) {
+    // ustaw baudrate
+    UBRR0 = UBRR_VALUE;
+    // włącz odbiornik i nadajnik
+    UCSR0B = _BV(RXEN0) | _BV(TXEN0);
+    // ustaw format 8n1
+    UCSR0C = _BV(UCSZ00) | _BV(UCSZ01);
+}
+
+// transmisja jednego znaku
+static int uart_transmit(char data, FILE* stream) {
+    // czekaj aż transmiter gotowy
+    while (!(UCSR0A & _BV(UDRE0)))
+        ;
+    UDR0 = data;
+    return 0;
+}
+
+// odczyt jednego znaku
+static int uart_receive(FILE* stream) {
+    // czekaj aż znak dostępny
+    while (!(UCSR0A & _BV(RXC0)))
+        ;
+    return UDR0;
+}
+
+FILE uart_file;
+
+#define MICROPHONE_MUX ADC1D
+
+// inicjalizacja ADC
+static inline void initialize_adc(void) {
+    ADMUX = _BV(REFS0); // referencja AVcc = 5V
+    ADMUX |= MICROPHONE_MUX; // pomiar ADC1
+    DIDR0 = _BV(MICROPHONE_MUX); // wyłącz wejście cyfrowe na ADC1
+    // częstotliwość zegara ADC 125 kHz (16 MHz / 128)
+    ADCSRA = _BV(ADPS0) | _BV(ADPS1) | _BV(ADPS2); // preskaler 128
+    ADCSRA |= _BV(ADIE) | _BV(ADATE); // enable interrupt and auto-trigger
+    ADCSRB |= _BV(ADTS2) | _BV(ADTS1); // auto-trigger on timer 1 overflow
+    ADCSRA |= _BV(ADEN); // włącz ADC
+}
+
+static inline uint16_t read_adc(void) {
+    ADCSRA |= _BV(ADSC); // wykonaj konwersję
+    loop_until_bit_is_set(ADCSRA, ADIF); // czekaj na wynik
+    ADCSRA |= _BV(ADIF); // wyczyść bit ADIF (pisząc 1!)
+    return ADC; // weź zmierzoną wartość (0..1023)
+}
+
+static inline uint16_t adc_to_milivolts(uint32_t adc) {
+    const uint32_t vref_times_1000 = 5000;
+    return (adc * vref_times_1000) / 1024;
+}
+
+#define SAMPLING_FREQUENCY 8000.0
+
+static inline void initialize_timer(void) {
+    // ustaw tryb licznika
+    // COM1A = 10   -- non-inverting mode
+    // WGM1  = 1110 -- Fast PWM top=ICR1
+    // CS1   = 010  -- prescaler 8
+    // ICR1  = 249
+    // częstotliwość 16e6/(8*(1+249)) = 8000 Hz
+
+    ICR1 = 249;
+    TCCR1A = _BV(COM1A1);
+    TCCR1B = _BV(CS11);
+
+    TCCR1A |= _BV(WGM11);
+    TCCR1B |= _BV(WGM13) | _BV(WGM12);
+
+    TIMSK1 = _BV(TIMSK1);
+}
+
+static volatile uint16_t counter = 0;
+static volatile float mean_temporary = 0;
+static volatile float mean = 0;
+static volatile float mean_result = 0;
+
+ISR(TIMER1_OVF_vect) { }
+
+ISR(ADC_vect) {
+    float adc_milivolts = (ADC * 5.0) / 1024.0;
+    adc_milivolts -= 2.5;
+    mean_temporary += adc_milivolts * adc_milivolts;
+    counter++;
+    if (counter % 8 == 0) {
+        mean = mean_temporary / SAMPLING_FREQUENCY;
+        mean_temporary = 0;
+    }
+    if (counter == SAMPLING_FREQUENCY) {
+        counter = 0;
+        mean_temporary = 0;
+        mean_result = sqrt(mean);
+        mean = 0;
+    }
+}
+
+// static volatile uint16_t counter = 0;
+// static volatile uint32_t mean_temporary = 0;
+// static volatile uint32_t mean = 0;
+// static volatile uint32_t mean_result = 0;
+
+// ISR(TIMER1_OVF_vect) { }
+
+// ISR(ADC_vect) {
+//     int32_t adc_milivolts = adc_to_milivolts(ADC);
+//     adc_milivolts -= 2500;
+//     mean_temporary += adc_milivolts * adc_milivolts;
+//     counter++;
+//     if (counter % 8 == 0) {
+//         mean = mean_temporary / SAMPLING_FREQUENCY;
+//         mean_temporary = 0;
+//     }
+//     if (counter == SAMPLING_FREQUENCY) {
+//         counter = 0;
+//         mean_temporary = 0;
+//         mean_result = sqrt(mean);
+//         mean = 0;
+//     }
+// }
+
+int main() {
+    // zainicjalizuj UART
+    uart_init();
+    // skonfiguruj strumienie wejścia/wyjścia
+    fdev_setup_stream(&uart_file, uart_transmit, uart_receive, _FDEV_SETUP_RW);
+    stdin = stdout = stderr = &uart_file;
+
+    initialize_adc();
+    initialize_timer();
+
+    while (1) {
+        cli();
+        // printf("Mean: %" PRIu32 "mV \r\n", mean);
+        printf("Mean: %f %f %f \r\n", mean_temporary, mean, mean_result);
+        float dbfs = 20 * log10(mean_result / 0.011);
+        printf("%f dBFS\r\n", dbfs);
+        sei();
+
+        _delay_ms(100);
+    }
+}
