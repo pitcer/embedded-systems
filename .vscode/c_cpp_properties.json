@@ -10,8 +10,12 @@
                 "${workspaceFolder}/fritos/**",
                 "${workspaceFolder}/fritos/FreeRTOS/Source/portable/GCC/ATMega328"
             ],
+            // "compilerArgs": [
+            //     "-mmcu=atmega328p",
+            //     "-DF_CPU=16000000UL"
+            // ],
             "compilerArgs": [
-                "-mmcu=atmega328p",
+                "-mmcu=attiny84a",
                 "-DF_CPU=16000000UL"
             ]
         }
