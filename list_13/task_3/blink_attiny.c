@@ -56,12 +56,12 @@ ISR(TIM1_OVF_vect) {
     BUFFER[write_position] = !((BUTTON_PIN & _BV(BUTTON)) >> BUTTON);
     // Zwiększamy pozycje bufora o 1.
     // Pozycja czytelnika jest zawsze o 1 większa od pisarza.
-    write_position = (write_position + 1) % BUFFER_SIZE;
-    // if (write_position == BUFFER_SIZE - 1) {
-    //     write_position = 0;
-    // } else {
-    //     write_position++;
-    // }
+    // write_position = (write_position + 1) % BUFFER_SIZE;
+    if (write_position == BUFFER_SIZE - 1) {
+        write_position = 0;
+    } else {
+        write_position++;
+    }
     // Wyzeruj bit, a potem ustaw go na wartość w buforze.
     LED_PORT = (LED_PORT & ~_BV(LED)) | BUFFER[write_position] << LED;
 }
