@@ -117,7 +117,7 @@ int main() {
 
             const float mean = sqrt((float)squares_sum / counter);
             const float mean_volts = (mean * 5.0) / 1024.0;
-            const float x_ref = (OFFSET * 5.0) / 1024.0;
+            const float x_ref = ((OFFSET - 50) * 5.0) / 1024.0;
             const float decibels = 20.0 * log10(mean_volts / x_ref);
             printf("Sum: %lu (%u); Mean: %f mV (%f); %f dBFS\r\n", squares_sum, counter, mean_volts, mean, decibels);
         }
